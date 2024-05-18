@@ -8,7 +8,7 @@ import os
 import logging
 import asyncio
 
-# Load environment variables from .env file
+# Loading env flie
 load_dotenv()
 
 # Set up logging
