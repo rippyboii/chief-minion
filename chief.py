@@ -13,6 +13,11 @@ load_dotenv()
 # Set up logging to display debug information
 logging.basicConfig(level=logging.DEBUG)
 
+# Print environment variables to verify they are loaded correctly
+print("Private Key ID:", os.getenv("PRIVATE_KEY_ID"))
+print("Client Email:", os.getenv("CLIENT_EMAIL"))
+print("Client ID:", os.getenv("CLIENT_ID"))
+
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
@@ -22,24 +27,33 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# Replace literal '\\n' with actual newlines in the private key
+private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
+
+# Print the private key to debug
+print("Private Key:", private_key)
+
 # Set up Google Sheets API credentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = {
     "type": "service_account",
     "project_id": "rolling-admission",
     "private_key_id": os.getenv("PRIVATE_KEY_ID"),
-    "private_key": os.getenv("PRIVATE_KEY").replace('\\n', '\n'),
+    "private_key": private_key,
     "client_email": os.getenv("CLIENT_EMAIL"),
     "client_id": os.getenv("CLIENT_ID"),
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/minion-bot%40rolling-admission.iam.gserviceaccount.com",
-    "universe_domain": "googleapis.com"
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/minion-bot@rolling-admission.iam.gserviceaccount.com"
 }
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(creds)
-sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
+
+try:
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
+except Exception as e:
+    logging.error(f"Error creating credentials: {e}")
 
 # Verification view and button
 class VerificationView(discord.ui.View):
