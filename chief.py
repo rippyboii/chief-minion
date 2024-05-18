@@ -146,11 +146,15 @@ async def on_ready():
                     await message.delete()
 
             await verification_channel.send(
-                "Let's get you verified first.\n"
-                "Step one: Know your Application ID (ID Format: RA_number_Your name. Make sure your ID is exactly as it appeared in your email that we sent earlier upon registration)\n"
-                "Step two: Rename yourself as the same as that application ID. Check the video above if you have any confusion on renaming yourself.\n"
-                "Step three: Click the verify button below. If you have any problem or you are not being verified, click the support button for human help.\n"
-                "Once you are verified, you will get access to other channels.",
+                "📣 Attention, Applicant! Listen up! 🚨\n \n"
+
+                "**Step One:** Identify your Application ID. Format: RA_number_YourName. Ensure your ID matches precisely with the email we sent upon your registration.\n \n"
+
+                "**Step Two:** Rename yourself to match your Application ID exactly. Refer to the video above if you need assistance with renaming.\n \n"
+
+                "**Step Three:** Click the verify button below. If you encounter any issues or fail to get verified, hit the support button for human assistance.\n \n"
+
+                "Upon successful verification, you will gain access to additional channels. Move with precision and follow these instructions to the letter!\n",
                 view=VerificationView()
             )
     except Exception as e:
