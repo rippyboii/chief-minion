@@ -1,5 +1,5 @@
 # Use the official Python image.
-FROM python:3.10-slim
+FROM python:3.10
 
 # Set the working directory in the container
 WORKDIR /app
@@ -18,4 +18,3 @@ ENV PYTHONUNBUFFERED=1
 
 # Run chief.py when the container launches
 CMD ["python", "chief.py"]
-
