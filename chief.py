@@ -13,7 +13,7 @@ import asyncio
 load_dotenv()
 
 # Set up logging
-logging.basicConfig(level=logging.CRITICAL)  
+logging.basicConfig(level=logging.DEBUG)
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -46,8 +46,10 @@ try:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
     sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
+    logging.debug("Google Sheets connection established successfully.")
 except Exception as e:
     logging.error(f"Error creating credentials: {e}")
+    sheet = None
 
 # Set the ID for the logging channel
 LOGGING_CHANNEL_ID = 1241235207227445309
@@ -66,7 +68,6 @@ class VerificationView(discord.ui.View):
         super().__init__(timeout=None)  # Disable timeout
         self.add_item(VerifyButton())
         self.add_item(SupportButton())
-
 
 class VerifyButton(Button):
     def __init__(self):
@@ -92,6 +93,9 @@ class VerifyButton(Button):
             # Check Google Sheets for Application ID
             application_id = display_name
             try:
+                if sheet is None:
+                    raise Exception("Google Sheets not initialized")
+
                 sheet_data = sheet.col_values(27)  # Assuming the Application ID is in the 27th column (AA)
                 await log_to_channel(bot, f"Retrieved sheet data for verification: {sheet_data}")
 
@@ -118,11 +122,11 @@ class VerifyButton(Button):
                         log_file.write(f"{member.name} ({display_name}) - Application ID not found\n")
             except Exception as e:
                 await interaction.response.send_message(f"An error occurred: {e}", ephemeral=True)
-                await log_to_channel(bot, f"Error accessing Google Sheets for {member.name}: {e}")
+                await log_to_channel(bot, f"Error accessing Google Sheets for {member.display_name}: {e}")
 
         except Exception as e:
             await interaction.response.send_message(f"An error occurred during verification: {e}", ephemeral=True)
-            await log_to_channel(bot, f"Unexpected error during verification for {member.name}: {e}")
+            await log_to_channel(bot, f"Unexpected error during verification for {member.display_name}: {e}")
 
 class SupportButton(Button):
     def __init__(self):
