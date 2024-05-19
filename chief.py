@@ -9,7 +9,7 @@ import os
 import logging
 import asyncio
 
-# Loading env file
+# Load env file
 load_dotenv()
 
 # Set up logging
@@ -42,14 +42,27 @@ creds_dict = {
     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/minion-bot@rolling-admission.iam.gserviceaccount.com"
 }
 
+
 try:
+    logging.debug("Attempting to create Google Sheets credentials.")
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    logging.debug("Credentials created successfully.")
     client = gspread.authorize(creds)
+    logging.debug("Authorized client successfully.")
     sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
     logging.debug("Google Sheets connection established successfully.")
 except Exception as e:
     logging.error(f"Error creating credentials: {e}")
     sheet = None
+
+# Additional logging for environment variables
+async def log_env_vars():
+    await log_to_channel(bot, f"PRIVATE_KEY_ID: {os.getenv('PRIVATE_KEY_ID')}")
+    await log_to_channel(bot, f"PRIVATE_KEY: {os.getenv('PRIVATE_KEY')[:30]}...")  # Log only the first 30 chars for security
+    await log_to_channel(bot, f"CLIENT_EMAIL: {os.getenv('CLIENT_EMAIL')}")
+    await log_to_channel(bot, f"CLIENT_ID: {os.getenv('CLIENT_ID')}")
+    await log_to_channel(bot, f"Formatted PRIVATE_KEY: {private_key[:30]}...")  # Log only the first 30 chars for security
+
 
 # Set the ID for the logging channel
 LOGGING_CHANNEL_ID = 1241235207227445309
@@ -144,6 +157,7 @@ class SupportButton(Button):
 async def on_ready():
     print(f"We have logged in {bot.user}")
     await log_to_channel(bot, f"We have logged in as {bot.user}")
+    await log_env_vars()  # Log environment variables when the bot is ready
 
     async def keep_alive():
         while True:
@@ -173,6 +187,27 @@ async def on_ready():
             )
     except Exception as e:
         await log_to_channel(bot, f"Error in on_ready: {e}")
+
+async def initialize_google_sheets():
+    try:
+        await log_to_channel(bot, "Attempting to create Google Sheets credentials.")
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        await log_to_channel(bot, "Credentials created successfully.")
+        client = gspread.authorize(creds)
+        await log_to_channel(bot, "Authorized client successfully.")
+        sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
+        await log_to_channel(bot, "Google Sheets connection established successfully.")
+    except gspread.exceptions.APIError as e:
+        await log_to_channel(bot, f"Google Sheets API error: {e}")
+    except ValueError as e:
+        await log_to_channel(bot, f"Value error: {e}")
+    except Exception as e:
+        await log_to_channel(bot, f"Unexpected error: {e}")
+        return None
+    return sheet
+
+sheet = asyncio.run(initialize_google_sheets())
+
 
 def has_bot_helper_role():
     def predicate(ctx):
