@@ -13,7 +13,7 @@ import asyncio
 load_dotenv()
 
 # Set up logging
-logging.basicConfig(level=logging.CRITICAL)  # Minimize terminal logging to critical errors
+logging.basicConfig(level=logging.CRITICAL)  
 
 intents = discord.Intents.default()
 intents.messages = True
