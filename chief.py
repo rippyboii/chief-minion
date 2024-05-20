@@ -10,8 +10,12 @@ from dotenv import load_dotenv
 import os
 import logging
 import asyncio
+
 # Loading env flie
+
 load_dotenv()
+
+
 # Set up logging
 logging.basicConfig(level=logging.CRITICAL)  # Minimize terminal logging to critical errors
 intents = discord.Intents.default()
@@ -21,8 +25,12 @@ intents.guilds = True
 intents.reactions = True
 intents.members = True
 bot = commands.Bot(command_prefix='chief ', intents=intents)
+
+
 # Replace literal '\\n' with actual newlines in the private key
 private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
+
+
 # Set up Google Sheets API credentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = {
@@ -43,21 +51,31 @@ try:
     sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
 except Exception as e:
     logging.error(f"Error creating credentials: {e}")
+
+
 # Set the ID for the logging channel
+
 LOGGING_CHANNEL_ID = 1241235207227445309
 BOT_HELPER_ROLE_ID = 1232694582114783232
 VERIFIED_ROLE_ID = 1232674785981628426
+
+
 # Helper function to send log messages to the logging channel
 async def log_to_channel(bot, message):
     channel = bot.get_channel(LOGGING_CHANNEL_ID)
     if channel:
         await channel.send(message)
+
+
 # Verification view and button
 class VerificationView(discord.ui.View):
     def __init__(self):
-        super().__init__()
+        super().__init__(timeout= None)
         self.add_item(VerifyButton())
         self.add_item(SupportButton())
+
+
+        #VErify Button
 class VerifyButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Verify", style=discord.ButtonStyle.green)
@@ -117,6 +135,8 @@ class SupportButton(discord.ui.Button):
             f"Your request for manual verification has been sent. Please wait for <@&{BOT_HELPER_ROLE_ID}> to assist you. Stand by.",
             ephemeral=True
         )
+
+
 @bot.event
 async def on_ready():
     await log_to_channel(bot, f"We have logged in as {bot.user}")
@@ -142,18 +162,24 @@ def has_bot_helper_role():
         bot_helper_role = discord.utils.get(ctx.guild.roles, id=BOT_HELPER_ROLE_ID)
         return bot_helper_role in ctx.author.roles
     return commands.check(predicate)
+
+#bans the member from the server
 @bot.command(name="ban")
 @has_bot_helper_role()
 async def ban(ctx, member: discord.Member, *, reason=None):
     await member.ban(reason=reason)
     await ctx.send(f"{member.mention} has been banned for: {reason}")
     await log_to_channel(bot, f"{member.mention} was banned by {ctx.author} for: {reason}")
+
+    #kicks the member from server
 @bot.command(name="kick")
 @has_bot_helper_role()
 async def kick(ctx, member: discord.Member, *, reason=None):
     await member.kick(reason=reason)
     await ctx.send(f"{member.mention} has been kicked for: {reason}")
     await log_to_channel(bot, f"{member.mention} was kicked by {ctx.author} for: {reason}")
+
+
 @bot.command(name="unverify")
 @has_bot_helper_role()
 async def unverify(ctx, member: discord.Member):
@@ -165,6 +191,8 @@ async def unverify(ctx, member: discord.Member):
     else:
         await ctx.send(f"{member.mention} does not have the Verified role.")
         await log_to_channel(bot, f"{member.mention} does not have the Verified role.")
+
+        #mutes certain participant for certain duration
 @bot.command(name="mute")
 @has_bot_helper_role()
 async def mute(ctx, member: discord.Member, duration: int):
@@ -180,30 +208,40 @@ async def mute(ctx, member: discord.Member, duration: int):
     await member.remove_roles(mute_role)
     await ctx.send(f"{member.mention} has been unmuted.")
     await log_to_channel(bot, f"{member.mention} was unmuted.")
+
+    #warns certain public
 @bot.command(name="warn")
 @has_bot_helper_role()
 async def warn(ctx, member: discord.Member, *, reason=None):
     await member.send(f"You have been warned for: {reason}")
     await ctx.send(f"{member.mention} has been warned for: {reason}")
     await log_to_channel(bot, f"{member.mention} was warned by {ctx.author} for: {reason}")
+
+    #clears messages to certain amount
 @bot.command(name="clear")
 @has_bot_helper_role()
 async def clear(ctx, amount: int):
     await ctx.channel.purge(limit=amount)
     await ctx.send(f"Cleared {amount} messages.", delete_after=5)
     await log_to_channel(bot, f"{ctx.author} cleared {amount} messages in {ctx.channel.name}")
+
+    #locks any channel for public
 @bot.command(name="lock")
 @has_bot_helper_role()
 async def lock(ctx):
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
     await ctx.send(f"{ctx.channel.name} has been locked.")
     await log_to_channel(bot, f"{ctx.author} locked {ctx.channel.name}")
+    
+    #unlocks the locked channel
 @bot.command(name="unlock")
 @has_bot_helper_role()
 async def unlock(ctx):
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
     await ctx.send(f"{ctx.channel.name} has been unlocked.")
     await log_to_channel(bot, f"{ctx.author} unlocked {ctx.channel.name}")
+
+    #gives userinfo
 @bot.command(name="userinfo")
 @has_bot_helper_role()
 async def userinfo(ctx, member: discord.Member):
