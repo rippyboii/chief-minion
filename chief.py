@@ -136,10 +136,19 @@ class SupportButton(discord.ui.Button):
             ephemeral=True
         )
 
+async def keep_alive():
+    while True:
+        await asyncio.sleep(300)  # Sleep for 5 minutes
+        try:
+            log_to_channel(bot,"Keep-alive check")
+        except Exception as e:
+            log_to_channel(bot, f"Error in keep-alive check: {e}")
+
 
 @bot.event
 async def on_ready():
     await log_to_channel(bot, f"We have logged in as {bot.user}")
+    bot.loop.create_task(keep_alive())
     try:
         verification_channel = bot.get_channel(1232674931255414865)  # Your verification channel ID
         if verification_channel:
