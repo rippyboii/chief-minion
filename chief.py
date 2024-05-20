@@ -14,7 +14,7 @@ import asyncio
 load_dotenv()
 
 # Set up logging
-logging.basicConfig(level=logging.CRITICAL)  # Minimize terminal logging to critical errors
+logging.basicConfig(level=logging.INFO)  # Use INFO level to get more detailed logs
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
@@ -43,18 +43,17 @@ creds_dict = {
 
 sheet = None  # Initialize sheet as None
 
-def initialize_google_sheets():
+async def initialize_google_sheets():
     global sheet
-    try:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
-        sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
-        logging.info("Google Sheets client initialized successfully")
-    except Exception as e:
-        logging.error(f"Error creating credentials: {e}")
-
-# Call the function to initialize Google Sheets
-initialize_google_sheets()
+    while sheet is None:
+        try:
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            client = gspread.authorize(creds)
+            sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
+            logging.info("Google Sheets client initialized successfully")
+        except Exception as e:
+            logging.error(f"Error creating credentials: {e}")
+            await asyncio.sleep(60)  # Retry after 60 seconds if initialization fails
 
 # Set the ID for the logging channel
 LOGGING_CHANNEL_ID = 1241235207227445309
@@ -153,6 +152,7 @@ async def keep_alive():
 async def on_ready():
     print(f"We have logged in as {bot.user}")
     bot.loop.create_task(keep_alive())  # Start keep-alive task
+    bot.loop.create_task(initialize_google_sheets())  # Start Google Sheets initialization
     await log_to_channel(bot, f"We have logged in as {bot.user}")
     try:
         verification_channel = bot.get_channel(1232674931255414865)  # Your verification channel ID
