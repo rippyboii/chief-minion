@@ -31,6 +31,15 @@ bot = commands.Bot(command_prefix='chief ', intents=intents)
 private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
 
 
+# Helper function to send log messages to the logging channel
+async def log_to_channel(bot, message):
+    channel = bot.get_channel(LOGGING_CHANNEL_ID)
+    if channel:
+        await channel.send(message)
+
+
+
+# Set up Google Sheets API credentials
 # Set up Google Sheets API credentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = {
@@ -49,9 +58,20 @@ try:
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
     sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
+    # Log success of opening the Google Sheet
+    asyncio.run(log_to_channel(bot, "Successfully accessed Google Sheet: Rolling Admission (Responses), Worksheet: Form Responses 1"))
+except gspread.exceptions.SpreadsheetNotFound:
+    error_message = "Error: The spreadsheet 'Rolling Admission (Responses)' was not found."
+    logging.error(error_message)
+    asyncio.run(log_to_channel(bot, error_message))
+except gspread.exceptions.WorksheetNotFound:
+    error_message = "Error: The worksheet 'Form Responses 1' was not found in the spreadsheet."
+    logging.error(error_message)
+    asyncio.run(log_to_channel(bot, error_message))
 except Exception as e:
-    logging.error(f"Error creating credentials: {e}")
-
+    error_message = f"Error creating credentials or accessing the sheet: {e}"
+    logging.error(error_message)
+    asyncio.run(log_to_channel(bot, error_message))
 
 # Set the ID for the logging channel
 
@@ -59,12 +79,6 @@ LOGGING_CHANNEL_ID = 1241235207227445309
 BOT_HELPER_ROLE_ID = 1232694582114783232
 VERIFIED_ROLE_ID = 1232674785981628426
 
-
-# Helper function to send log messages to the logging channel
-async def log_to_channel(bot, message):
-    channel = bot.get_channel(LOGGING_CHANNEL_ID)
-    if channel:
-        await channel.send(message)
 
 
 # Verification view and button
