@@ -231,9 +231,30 @@ async def warn(ctx, member: discord.Member, *, reason=None):
 @bot.command(name="clear")
 @has_bot_helper_role()
 async def clear(ctx, amount: int):
-    await ctx.channel.purge(limit=amount)
-    await ctx.send(f"Cleared {amount} messages.", delete_after=5)
-    await log_to_channel(bot, f"{ctx.author} cleared {amount} messages in {ctx.channel.name}")
+    try:
+        deleted = await ctx.channel.purge(limit=amount)
+        await ctx.send(f"Cleared {len(deleted)} messages.", delete_after=5)
+        await log_to_channel(bot, f"{ctx.author} cleared {len(deleted)} messages in {ctx.channel.name}")
+    except discord.errors.HTTPException as e:
+        if e.code == 429:
+            retry_after = int(e.headers.get("Retry-After", 1))
+            logging.warning(f"Rate limit hit. Retrying in {retry_after} seconds.")
+            await asyncio.sleep(retry_after)
+            deleted = await ctx.channel.purge(limit=amount)
+            await ctx.send(f"Cleared {len(deleted)} messages.", delete_after=5)
+            await log_to_channel(bot, f"{ctx.author} cleared {len(deleted)} messages in {ctx.channel.name} after retry")
+        else:
+            await ctx.send("An error occurred while trying to clear messages. Please try again later.")
+            logging.error(f"Unexpected error while clearing messages: {e}")
+            await log_to_channel(bot, f"Unexpected error while clearing messages: {e}")
+
+# Helper function to send log messages to the logging channel
+async def log_to_channel(bot, message):
+    channel = bot.get_channel(LOGGING_CHANNEL_ID)
+    if channel:
+        await channel.send(message)
+
+
 
     #locks any channel for public
 @bot.command(name="lock")
