@@ -286,3 +286,5 @@ async def userinfo(ctx, member: discord.Member):
     await ctx.send(embed=embed)
     await log_to_channel(bot, f"{ctx.author} requested info for {member}")
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
+
+#test push
