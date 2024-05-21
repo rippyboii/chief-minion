@@ -1,6 +1,3 @@
-#Author -> Apeel Subedi
-
-
 import discord
 from discord.ext import commands
 import gspread
@@ -11,10 +8,8 @@ import os
 import logging
 import asyncio
 
-# Loading env flie
-
+# Loading env file
 load_dotenv()
-
 
 # Set up logging
 logging.basicConfig(level=logging.CRITICAL)  # Minimize terminal logging to critical errors
@@ -26,12 +21,10 @@ intents.reactions = True
 intents.members = True
 bot = commands.Bot(command_prefix='chief ', intents=intents)
 
-
 # Replace literal '\\n' with actual newlines in the private key
 private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
 
 # Set the ID for the logging channel
-
 LOGGING_CHANNEL_ID = 1241235207227445309
 BOT_HELPER_ROLE_ID = 1232694582114783232
 VERIFIED_ROLE_ID = 1232674785981628426
@@ -42,9 +35,6 @@ async def log_to_channel(bot, message):
     if channel:
         await channel.send(message)
 
-
-
-# Set up Google Sheets API credentials
 # Set up Google Sheets API credentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = {
@@ -59,37 +49,60 @@ creds_dict = {
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/minion-bot@rolling-admission.iam.gserviceaccount.com"
 }
-try:
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
-    # Log success of opening the Google Sheet
-    asyncio.run(log_to_channel(bot, "Successfully accessed Google Sheet: Rolling Admission (Responses), Worksheet: Form Responses 1"))
-except gspread.exceptions.SpreadsheetNotFound:
-    error_message = "Error: The spreadsheet 'Rolling Admission (Responses)' was not found."
-    logging.error(error_message)
-    asyncio.run(log_to_channel(bot, error_message))
-except gspread.exceptions.WorksheetNotFound:
-    error_message = "Error: The worksheet 'Form Responses 1' was not found in the spreadsheet."
-    logging.error(error_message)
-    asyncio.run(log_to_channel(bot, error_message))
-except Exception as e:
-    error_message = f"Error creating credentials or accessing the sheet: {e}"
-    logging.error(error_message)
-    asyncio.run(log_to_channel(bot, error_message))
 
+async def setup_google_sheet():
+    try:
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
+        # Log success of opening the Google Sheet
+        await log_to_channel(bot, "Successfully accessed Google Sheet: Rolling Admission (Responses), Worksheet: Form Responses 1")
+        return sheet
+    except gspread.exceptions.SpreadsheetNotFound:
+        error_message = "Error: The spreadsheet 'Rolling Admission (Responses)' was not found."
+        logging.error(error_message)
+        await log_to_channel(bot, error_message)
+    except gspread.exceptions.WorksheetNotFound:
+        error_message = "Error: The worksheet 'Form Responses 1' was not found in the spreadsheet."
+        logging.error(error_message)
+        await log_to_channel(bot, error_message)
+    except Exception as e:
+        error_message = f"Error creating credentials or accessing the sheet: {e}"
+        logging.error(error_message)
+        await log_to_channel(bot, error_message)
 
+sheet = None
 
+@bot.event
+async def on_ready():
+    global sheet
+    await log_to_channel(bot, f"We have logged in as {bot.user}")
+    bot.loop.create_task(keep_alive())
+    sheet = await setup_google_sheet()
+    try:
+        verification_channel = bot.get_channel(1232674931255414865)  # Your verification channel ID
+        if verification_channel:
+            # Delete bot's previous messages in the verification channel
+            async for message in verification_channel.history(limit=100):
+                if message.author == bot.user:
+                    await message.delete()
+            await verification_channel.send(
+                "📣 Attention, Applicant! Listen up! 🚨\n \n"
+                "**Step One:** Identify your Application ID. Format: RA_number_YourName. Ensure your ID matches precisely with the email we sent upon your registration.\n \n"
+                "**Step Two:** Rename yourself to match your Application ID exactly. Refer to the video above if you need assistance with renaming.\n \n"
+                "**Step Three:** Click the verify button below. If you encounter any issues or fail to get verified, hit the support button for human assistance.\n \n"
+                "Upon successful verification, you will gain access to additional channels. Move with precision and follow these instructions to the letter!\n",
+                view=VerificationView()
+            )
+    except Exception as e:
+        await log_to_channel(bot, f"Error in on_ready: {e}")
 
-# Verification view and button
 class VerificationView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout= None)
         self.add_item(VerifyButton())
         self.add_item(SupportButton())
 
-
-        #VErify Button
 class VerifyButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Verify", style=discord.ButtonStyle.green)
@@ -134,7 +147,7 @@ class VerifyButton(discord.ui.Button):
                     with open("unverified_attempts.log", "a") as log_file:
                         log_file.write(f"{member.name} ({display_name}) - Application ID not found\n")
             except Exception as e:
-                await interaction.response.send_message(f"An error occurred: {e}", ephemeral=True)
+                await interaction.response.send_message(f"Please request manual verification. An error occurred: {e}", ephemeral=True)
                 await log_to_channel(bot, f"Error accessing Google Sheets for {member.name}: {e}")
 
         except discord.errors.NotFound:
@@ -164,29 +177,6 @@ async def keep_alive():
         except Exception as e:
             await log_to_channel(bot, f"Error in keep-alive check: {e}")
 
-
-
-@bot.event
-async def on_ready():
-    await log_to_channel(bot, f"We have logged in as {bot.user}")
-    bot.loop.create_task(keep_alive())
-    try:
-        verification_channel = bot.get_channel(1232674931255414865)  # Your verification channel ID
-        if verification_channel:
-            # Delete bot's previous messages in the verification channel
-            async for message in verification_channel.history(limit=100):
-                if message.author == bot.user:
-                    await message.delete()
-            await verification_channel.send(
-                "📣 Attention, Applicant! Listen up! 🚨\n \n"
-                "**Step One:** Identify your Application ID. Format: RA_number_YourName. Ensure your ID matches precisely with the email we sent upon your registration.\n \n"
-                "**Step Two:** Rename yourself to match your Application ID exactly. Refer to the video above if you need assistance with renaming.\n \n"
-                "**Step Three:** Click the verify button below. If you encounter any issues or fail to get verified, hit the support button for human assistance.\n \n"
-                "Upon successful verification, you will gain access to additional channels. Move with precision and follow these instructions to the letter!\n",
-                view=VerificationView()
-            )
-    except Exception as e:
-        await log_to_channel(bot, f"Error in on_ready: {e}")
 def has_bot_helper_role():
     def predicate(ctx):
         bot_helper_role = discord.utils.get(ctx.guild.roles, id=BOT_HELPER_ROLE_ID)
@@ -201,14 +191,13 @@ async def ban(ctx, member: discord.Member, *, reason=None):
     await ctx.send(f"{member.mention} has been banned for: {reason}")
     await log_to_channel(bot, f"{member.mention} was banned by {ctx.author} for: {reason}")
 
-    #kicks the member from server
+#kicks the member from server
 @bot.command(name="kick")
 @has_bot_helper_role()
 async def kick(ctx, member: discord.Member, *, reason=None):
     await member.kick(reason=reason)
     await ctx.send(f"{member.mention} has been kicked for: {reason}")
     await log_to_channel(bot, f"{member.mention} was kicked by {ctx.author} for: {reason}")
-
 
 @bot.command(name="unverify")
 @has_bot_helper_role()
@@ -222,7 +211,7 @@ async def unverify(ctx, member: discord.Member):
         await ctx.send(f"{member.mention} does not have the Verified role.")
         await log_to_channel(bot, f"{member.mention} does not have the Verified role.")
 
-        #mutes certain participant for certain duration
+# mutes certain participant for certain duration
 @bot.command(name="mute")
 @has_bot_helper_role()
 async def mute(ctx, member: discord.Member, duration: int):
@@ -239,7 +228,7 @@ async def mute(ctx, member: discord.Member, duration: int):
     await ctx.send(f"{member.mention} has been unmuted.")
     await log_to_channel(bot, f"{member.mention} was unmuted.")
 
-    #warns certain public
+# warns certain public
 @bot.command(name="warn")
 @has_bot_helper_role()
 async def warn(ctx, member: discord.Member, *, reason=None):
@@ -247,7 +236,7 @@ async def warn(ctx, member: discord.Member, *, reason=None):
     await ctx.send(f"{member.mention} has been warned for: {reason}")
     await log_to_channel(bot, f"{member.mention} was warned by {ctx.author} for: {reason}")
 
-    #clears messages to certain amount
+# clears messages to certain amount
 @bot.command(name="clear")
 @has_bot_helper_role()
 async def clear(ctx, amount: int):
@@ -268,23 +257,15 @@ async def clear(ctx, amount: int):
             logging.error(f"Unexpected error while clearing messages: {e}")
             await log_to_channel(bot, f"Unexpected error while clearing messages: {e}")
 
-# Helper function to send log messages to the logging channel
-async def log_to_channel(bot, message):
-    channel = bot.get_channel(LOGGING_CHANNEL_ID)
-    if channel:
-        await channel.send(message)
-
-
-
-    #locks any channel for public
+# locks any channel for public
 @bot.command(name="lock")
 @has_bot_helper_role()
 async def lock(ctx):
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
     await ctx.send(f"{ctx.channel.name} has been locked.")
     await log_to_channel(bot, f"{ctx.author} locked {ctx.channel.name}")
-    
-    #unlocks the locked channel
+
+# unlocks the locked channel
 @bot.command(name="unlock")
 @has_bot_helper_role()
 async def unlock(ctx):
@@ -292,7 +273,7 @@ async def unlock(ctx):
     await ctx.send(f"{ctx.channel.name} has been unlocked.")
     await log_to_channel(bot, f"{ctx.author} unlocked {ctx.channel.name}")
 
-    #gives userinfo
+# gives userinfo
 @bot.command(name="userinfo")
 @has_bot_helper_role()
 async def userinfo(ctx, member: discord.Member):
@@ -305,5 +286,5 @@ async def userinfo(ctx, member: discord.Member):
     embed.add_field(name="Roles", value=" ".join(roles), inline=False)
     await ctx.send(embed=embed)
     await log_to_channel(bot, f"{ctx.author} requested info for {member}")
-bot.run(os.getenv("DISCORD_BOT_TOKEN"))
 
+bot.run(os.getenv("DISCORD_BOT_TOKEN"))
