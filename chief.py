@@ -30,6 +30,11 @@ bot = commands.Bot(command_prefix='chief ', intents=intents)
 # Replace literal '\\n' with actual newlines in the private key
 private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
 
+# Set the ID for the logging channel
+
+LOGGING_CHANNEL_ID = 1241235207227445309
+BOT_HELPER_ROLE_ID = 1232694582114783232
+VERIFIED_ROLE_ID = 1232674785981628426
 
 # Helper function to send log messages to the logging channel
 async def log_to_channel(bot, message):
@@ -73,11 +78,6 @@ except Exception as e:
     logging.error(error_message)
     asyncio.run(log_to_channel(bot, error_message))
 
-# Set the ID for the logging channel
-
-LOGGING_CHANNEL_ID = 1241235207227445309
-BOT_HELPER_ROLE_ID = 1232694582114783232
-VERIFIED_ROLE_ID = 1232674785981628426
 
 
 
