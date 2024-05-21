@@ -79,34 +79,35 @@ class VerificationView(discord.ui.View):
 class VerifyButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Verify", style=discord.ButtonStyle.green)
+
     async def callback(self, interaction: discord.Interaction):
         member = interaction.user
         display_name = member.display_name
         try:
             await log_to_channel(bot, f"Starting verification for {member.name} with display name {display_name}")
+
             # Check display name format
             match = re.match(r"RA_\d+_.+", display_name)
             if not match:
                 await interaction.response.send_message(
-                    "You have not renamed in proper format. If you think I made a mistake, refer to manual verification.", ephemeral=True)
+                    "You have not renamed in proper format. If you think I made a mistake, refer to manual verification.",
+                    ephemeral=True)
                 await log_to_channel(bot, f"Failed format check for {member.name}")
-                # Log unverified attempt
                 with open("unverified_attempts.log", "a") as log_file:
                     log_file.write(f"{member.name} ({display_name}) - Failed format check\n")
                 return
+
             # Check Google Sheets for Application ID
             application_id = display_name
             try:
                 sheet_data = sheet.col_values(27)  # Assuming the Application ID is in the 27th column (AA)
                 await log_to_channel(bot, f"Retrieved sheet data for verification: {sheet_data}")
                 if application_id in sheet_data:
-                    # Grant access to other channels
                     role = interaction.guild.get_role(1232674785981628426)  # Your Verified Applicant role ID
                     if role:
                         await member.add_roles(role)
                         await interaction.response.send_message("You have been verified and granted access to other channels.", ephemeral=True)
                         await log_to_channel(bot, f"Role {role.name} added to {member.name}")
-                        # Send a welcome message
                         welcome_channel = bot.get_channel(123456789012345678)  # Your welcome channel ID
                         if welcome_channel:
                             await welcome_channel.send(f"Welcome, {member.mention}! You have been verified and granted access to the server.")
@@ -116,15 +117,20 @@ class VerifyButton(discord.ui.Button):
                 else:
                     await interaction.response.send_message("I couldn't verify your identity. Please contact support for human help.", ephemeral=True)
                     await log_to_channel(bot, f"Application ID {application_id} not found in sheet for {member.name}")
-                    # Log unverified attempt
                     with open("unverified_attempts.log", "a") as log_file:
                         log_file.write(f"{member.name} ({display_name}) - Application ID not found\n")
             except Exception as e:
                 await interaction.response.send_message(f"An error occurred: {e}", ephemeral=True)
                 await log_to_channel(bot, f"Error accessing Google Sheets for {member.name}: {e}")
+
+        except discord.errors.NotFound:
+            await log_to_channel(bot, f"Interaction not found for {member.name}, possibly expired.")
         except Exception as e:
-            await interaction.response.send_message(f"An error occurred during verification: {e}", ephemeral=True)
-            await log_to_channel(bot, f"Unexpected error during verification for {member.name}: {e}")
+            try:
+                await interaction.response.send_message(f"An error occurred during verification: {e}", ephemeral=True)
+            except discord.errors.NotFound:
+                await log_to_channel(bot, f"Error responding to interaction for {member.name}: {e}")
+
 class SupportButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Request Manual Verification", style=discord.ButtonStyle.red)
