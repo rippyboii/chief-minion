@@ -183,4 +183,4 @@ async def keep_alive():
     while not bot.is_closed():
         await asyncio.sleep(3600)  # Run task every hour
 
-bot.run(os.getenv("DISCORD_TOKEN"))
+bot.run(os.getenv("TOKEN"))
