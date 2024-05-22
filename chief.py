@@ -57,6 +57,15 @@ async def setup_google_sheet():
         sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
         # Log success of opening the Google Sheet
         await log_to_channel(bot, "Successfully accessed Google Sheet: Rolling Admission (Responses), Worksheet: Form Responses 1")
+        
+        # Log the headers or specific columns
+        headers = sheet.row_values(1)
+        await log_to_channel(bot, f"Headers in Google Sheet: {headers}")
+        
+        # Optionally, log specific columns or rows
+        column_data = sheet.col_values(1)  # For example, accessing the first column
+        await log_to_channel(bot, f"Data in first column: {column_data[:10]}")  # Log first 10 rows of the first column
+        
         return sheet
     except gspread.exceptions.SpreadsheetNotFound:
         error_message = "Error: The spreadsheet 'Rolling Admission (Responses)' was not found."
@@ -99,7 +108,7 @@ async def on_ready():
 
 class VerificationView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout= None)
+        super().__init__(timeout=None)
         self.add_item(VerifyButton())
         self.add_item(SupportButton())
 
@@ -170,122 +179,8 @@ class SupportButton(discord.ui.Button):
         )
 
 async def keep_alive():
-    while True:
-        await asyncio.sleep(300)  # Sleep for 5 minutes
-        try:
-            await log_to_channel(bot, "Keep-alive check")
-        except Exception as e:
-            await log_to_channel(bot, f"Error in keep-alive check: {e}")
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        await asyncio.sleep(3600)  # Run task every hour
 
-def has_bot_helper_role():
-    def predicate(ctx):
-        bot_helper_role = discord.utils.get(ctx.guild.roles, id=BOT_HELPER_ROLE_ID)
-        return bot_helper_role in ctx.author.roles
-    return commands.check(predicate)
-
-#bans the member from the server
-@bot.command(name="ban")
-@has_bot_helper_role()
-async def ban(ctx, member: discord.Member, *, reason=None):
-    await member.ban(reason=reason)
-    await ctx.send(f"{member.mention} has been banned for: {reason}")
-    await log_to_channel(bot, f"{member.mention} was banned by {ctx.author} for: {reason}")
-
-#kicks the member from server
-@bot.command(name="kick")
-@has_bot_helper_role()
-async def kick(ctx, member: discord.Member, *, reason=None):
-    await member.kick(reason=reason)
-    await ctx.send(f"{member.mention} has been kicked for: {reason}")
-    await log_to_channel(bot, f"{member.mention} was kicked by {ctx.author} for: {reason}")
-
-@bot.command(name="unverify")
-@has_bot_helper_role()
-async def unverify(ctx, member: discord.Member):
-    role = discord.utils.get(ctx.guild.roles, id=VERIFIED_ROLE_ID)
-    if role in member.roles:
-        await member.remove_roles(role)
-        await ctx.send(f"{member.mention} has been unverified.")
-        await log_to_channel(bot, f"{member.mention} was unverified by {ctx.author}")
-    else:
-        await ctx.send(f"{member.mention} does not have the Verified role.")
-        await log_to_channel(bot, f"{member.mention} does not have the Verified role.")
-
-# mutes certain participant for certain duration
-@bot.command(name="mute")
-@has_bot_helper_role()
-async def mute(ctx, member: discord.Member, duration: int):
-    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
-    if not mute_role:
-        mute_role = await ctx.guild.create_role(name="Muted")
-        for channel in ctx.guild.channels:
-            await channel.set_permissions(mute_role, send_messages=False, speak=False)
-    await member.add_roles(mute_role)
-    await ctx.send(f"{member.mention} has been muted for {duration} minutes.")
-    await log_to_channel(bot, f"{member.mention} was muted by {ctx.author} for {duration} minutes.")
-    await asyncio.sleep(duration * 60)
-    await member.remove_roles(mute_role)
-    await ctx.send(f"{member.mention} has been unmuted.")
-    await log_to_channel(bot, f"{member.mention} was unmuted.")
-
-# warns certain public
-@bot.command(name="warn")
-@has_bot_helper_role()
-async def warn(ctx, member: discord.Member, *, reason=None):
-    await member.send(f"You have been warned for: {reason}")
-    await ctx.send(f"{member.mention} has been warned for: {reason}")
-    await log_to_channel(bot, f"{member.mention} was warned by {ctx.author} for: {reason}")
-
-# clears messages to certain amount
-@bot.command(name="clear")
-@has_bot_helper_role()
-async def clear(ctx, amount: int):
-    try:
-        deleted = await ctx.channel.purge(limit=amount)
-        await ctx.send(f"Cleared {len(deleted)} messages.", delete_after=5)
-        await log_to_channel(bot, f"{ctx.author} cleared {len(deleted)} messages in {ctx.channel.name}")
-    except discord.errors.HTTPException as e:
-        if e.code == 429:
-            retry_after = int(e.headers.get("Retry-After", 1))
-            logging.warning(f"Rate limit hit. Retrying in {retry_after} seconds.")
-            await asyncio.sleep(retry_after)
-            deleted = await ctx.channel.purge(limit=amount)
-            await ctx.send(f"Cleared {len(deleted)} messages.", delete_after=5)
-            await log_to_channel(bot, f"{ctx.author} cleared {len(deleted)} messages in {ctx.channel.name} after retry")
-        else:
-            await ctx.send("An error occurred while trying to clear messages. Please try again later.")
-            logging.error(f"Unexpected error while clearing messages: {e}")
-            await log_to_channel(bot, f"Unexpected error while clearing messages: {e}")
-
-# locks any channel for public
-@bot.command(name="lock")
-@has_bot_helper_role()
-async def lock(ctx):
-    await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
-    await ctx.send(f"{ctx.channel.name} has been locked.")
-    await log_to_channel(bot, f"{ctx.author} locked {ctx.channel.name}")
-
-# unlocks the locked channel
-@bot.command(name="unlock")
-@has_bot_helper_role()
-async def unlock(ctx):
-    await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
-    await ctx.send(f"{ctx.channel.name} has been unlocked.")
-    await log_to_channel(bot, f"{ctx.author} unlocked {ctx.channel.name}")
-
-# gives userinfo
-@bot.command(name="userinfo")
-@has_bot_helper_role()
-async def userinfo(ctx, member: discord.Member):
-    roles = [role.mention for role in member.roles if role != ctx.guild.default_role]
-    embed = discord.Embed(title=f"User Info - {member}", color=member.color)
-    embed.add_field(name="ID", value=member.id, inline=False)
-    embed.add_field(name="Display Name", value=member.display_name, inline=False)
-    embed.add_field(name="Account Created", value=member.created_at.strftime("%d/%m/%Y %H:%M:%S"), inline=False)
-    embed.add_field(name="Joined Server", value=member.joined_at.strftime("%d/%m/%Y %H:%M:%S"), inline=False)
-    embed.add_field(name="Roles", value=" ".join(roles), inline=False)
-    await ctx.send(embed=embed)
-    await log_to_channel(bot, f"{ctx.author} requested info for {member}")
-
-bot.run(os.getenv("DISCORD_BOT_TOKEN"))
-
+bot.run(os.getenv("DISCORD_TOKEN"))
