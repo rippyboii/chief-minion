@@ -289,4 +289,3 @@ async def userinfo(ctx, member: discord.Member):
 
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
 
-#test push
