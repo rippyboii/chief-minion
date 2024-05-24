@@ -17,8 +17,10 @@ async def log_to_channel(bot, message):
     if channel:
         await channel.send(message)
 
-# Ensure environment variables are loaded
-private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
+# Ensure pem file is loaded 
+with open('.private_key.pem', 'r') as priv_key_file:
+    private_key = priv_key_file.read()
+
 async def log_private_key(bot, private_key):
     # Note: Be cautious about logging sensitive information to public channels
     await log_to_channel(bot, f"Private Key: {private_key[:50]}...")  # Log only the first 50 characters for safety
