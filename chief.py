@@ -9,16 +9,25 @@ import logging
 import asyncio
 
 # Loading env file
-# Loading env file
 load_dotenv()
 
-# After loading env file, check if variables are accessible
+# Helper function to send log messages to the logging channel
+async def log_to_channel(bot, message):
+    channel = bot.get_channel(LOGGING_CHANNEL_ID)
+    if channel:
+        await channel.send(message)
+
+# Ensure environment variables are loaded
 private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
+async def log_private_key(bot, private_key):
+    # Note: Be cautious about logging sensitive information to public channels
+    await log_to_channel(bot, f"Private Key: {private_key[:50]}...")  # Log only the first 50 characters for safety
+
+
 assert private_key, "PRIVATE_KEY is not set"
 assert os.getenv("PRIVATE_KEY_ID"), "PRIVATE_KEY_ID is not set"
 assert os.getenv("CLIENT_EMAIL"), "CLIENT_EMAIL is not set"
 assert os.getenv("CLIENT_ID"), "CLIENT_ID is not set"
-
 
 # Set up logging
 logging.basicConfig(level=logging.CRITICAL)  # Minimize terminal logging to critical errors
@@ -30,34 +39,15 @@ intents.reactions = True
 intents.members = True
 bot = commands.Bot(command_prefix='chief ', intents=intents)
 
-# Replace literal '\\n' with actual newlines in the private key
-private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
-
 # Set the ID for the logging channel
 LOGGING_CHANNEL_ID = 1241235207227445309
 BOT_HELPER_ROLE_ID = 1232694582114783232
 VERIFIED_ROLE_ID = 1232674785981628426
 
-# Helper function to send log messages to the logging channel
-async def log_to_channel(bot, message):
-    channel = bot.get_channel(LOGGING_CHANNEL_ID)
-    if channel:
-        await channel.send(message)
+
 
 # Set up Google Sheets API credentials
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds_dict = {
-    "type": "service_account",
-    "project_id": "rolling-admission",
-    "private_key_id": os.getenv("PRIVATE_KEY_ID"),
-    "private_key": private_key,
-    "client_email": os.getenv("CLIENT_EMAIL"),
-    "client_id": os.getenv("CLIENT_ID"),
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/minion-bot@rolling-admission.iam.gserviceaccount.com"
-}
 
 async def setup_google_sheet():
     try:
@@ -95,7 +85,6 @@ async def setup_google_sheet():
         logging.error(error_message)
         await log_to_channel(bot, error_message)
     return None
-
 
 sheet = None
 
@@ -156,7 +145,7 @@ class VerifyButton(discord.ui.Button):
                 sheet_data = sheet.col_values(27)  # Assuming the Application ID is in the 27th column (AA)
                 await log_to_channel(bot, f"Retrieved sheet data for verification: {sheet_data}")
                 if application_id in sheet_data:
-                    role = interaction.guild.get_role(1232674785981628426)  # Your Verified Applicant role ID
+                    role = interaction.guild.get_role(VERIFIED_ROLE_ID)  # Your Verified Applicant role ID
                     if role:
                         await member.add_roles(role)
                         await interaction.response.send_message("You have been verified and granted access to other channels.", ephemeral=True)
