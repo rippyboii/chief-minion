@@ -163,7 +163,7 @@ class VerifyButton(discord.ui.Button):
             await log_to_channel(bot, f"Interaction not found for {member.name}, possibly expired.")
         except Exception as e:
             try:
-                await interaction.response.send_message(f"An error occurred during verification: {e}", ephemeral=True)
+                await interaction.response.send_message(f"Please request manual verification. An error occurred during verification: {e}", ephemeral=True)
             except discord.errors.NotFound:
                 await log_to_channel(bot, f"Error responding to interaction for {member.name}: {e}")
 
