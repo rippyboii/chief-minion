@@ -9,7 +9,16 @@ import logging
 import asyncio
 
 # Loading env file
+# Loading env file
 load_dotenv()
+
+# After loading env file, check if variables are accessible
+private_key = os.getenv("PRIVATE_KEY").replace('\\n', '\n')
+assert private_key, "PRIVATE_KEY is not set"
+assert os.getenv("PRIVATE_KEY_ID"), "PRIVATE_KEY_ID is not set"
+assert os.getenv("CLIENT_EMAIL"), "CLIENT_EMAIL is not set"
+assert os.getenv("CLIENT_ID"), "CLIENT_ID is not set"
+
 
 # Set up logging
 logging.basicConfig(level=logging.CRITICAL)  # Minimize terminal logging to critical errors
@@ -52,20 +61,26 @@ creds_dict = {
 
 async def setup_google_sheet():
     try:
+        creds_dict = {
+            "type": "service_account",
+            "project_id": "rolling-admission",
+            "private_key_id": os.getenv("PRIVATE_KEY_ID"),
+            "private_key": private_key,
+            "client_email": os.getenv("CLIENT_EMAIL"),
+            "client_id": os.getenv("CLIENT_ID"),
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/minion-bot@rolling-admission.iam.gserviceaccount.com"
+        }
+
+        # Log credential information (excluding sensitive information)
+        await log_to_channel(bot, f"Credentials Dict: { {k: v for k, v in creds_dict.items() if k != 'private_key'} }")
+
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         sheet = client.open("Rolling Admission (Responses)").worksheet("Form Responses 1")
-        # Log success of opening the Google Sheet
         await log_to_channel(bot, "Successfully accessed Google Sheet: Rolling Admission (Responses), Worksheet: Form Responses 1")
-        
-        # Log the headers or specific columns
-        headers = sheet.row_values(1)
-        await log_to_channel(bot, f"Headers in Google Sheet: {headers}")
-        
-        # Optionally, log specific columns or rows
-        column_data = sheet.col_values(1)  # For example, accessing the first column
-        await log_to_channel(bot, f"Data in first column: {column_data[:10]}")  # Log first 10 rows of the first column
-        
         return sheet
     except gspread.exceptions.SpreadsheetNotFound:
         error_message = "Error: The spreadsheet 'Rolling Admission (Responses)' was not found."
@@ -79,6 +94,8 @@ async def setup_google_sheet():
         error_message = f"Error creating credentials or accessing the sheet: {e}"
         logging.error(error_message)
         await log_to_channel(bot, error_message)
+    return None
+
 
 sheet = None
 
