@@ -271,7 +271,7 @@ async def clear(ctx, amount: int):
             await ctx.send("An error occurred while trying to clear messages. Please try again later.")
             logging.error(f"Unexpected error while clearing messages: {e}")
             await log_to_channel(bot, f"Unexpected error while clearing messages: {e}")
-            
+
 
     #locks any channel for public
 @bot.command(name="lock")
